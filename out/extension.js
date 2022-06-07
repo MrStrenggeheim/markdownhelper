@@ -374,3 +374,4 @@ function pickPandocArgs() {
 }
 exports.pickPandocArgs = pickPandocArgs;
 //# sourceMappingURL=extension.js.map
+// test
