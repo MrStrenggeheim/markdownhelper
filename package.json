@@ -28,10 +28,6 @@
 			{
 				"command": "markdownhelper.buildFile",
 				"title": "MarkdownHelper: Build File"
-			},
-            {
-				"command": "markdownhelper.addVariant",
-				"title": "MarkdownHelper: Add Variant"
 			}
 		],
 		"configuration": {
