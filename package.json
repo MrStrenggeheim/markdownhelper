@@ -28,53 +28,57 @@
 			{
 				"command": "markdownhelper.buildFile",
 				"title": "MarkdownHelper: Build File"
+			},
+            {
+				"command": "markdownhelper.addVariant",
+				"title": "MarkdownHelper: Add Variant"
 			}
 		],
 		"configuration": {
 			"title": "MarkdownHelperSettings",
 			"properties": {
 				"markdownhelper.default-pdf-engine": {
-					"type": "string",
-					"default": "null",
-					"description": ""
-				},
-				"markdownhelper.default-standalone": {
-					"type": "boolean",
-					"default": true,
-					"description": ""
-				},
-				"markdownhelper.default-self-contained": {
-					"type": "boolean",
-					"default": false,
-					"description": ""
-				},
-				"markdownhelper.default-toc": {
-					"type": "boolean",
-					"default": true,
-					"description": ""
-				},
-				"markdownhelper.default-toc-depth": {
-					"type": "integer",
-					"default": 2,
-					"description": ""
-				},
-				"markdownhelper.default-toc-title": {
-					"type": "string",
-					"default": "Contents",
-					"description": ""
-				},
-				"markdownhelper.default-number-sections": {
-					"type": "boolean",
-					"default": true,
-					"description": ""
-				},
-				"markdownhelper.default-css": {
-					"type": "string",
-					"default": "null",
-					"description": ""
-				}
+                    "type": "string",
+                    "default": "null",
+                    "description": ""
+                },
+			  "markdownhelper.default-standalone": {
+				"type": "boolean",
+				"default": true,
+				"description": ""
+			  },
+			  "markdownhelper.default-self-contained": {
+				"type": "boolean",
+				"default": false,
+				"description": ""
+			  },
+			  "markdownhelper.default-toc": {
+				"type": "boolean",
+				"default": true,
+				"description": ""
+			  },
+			  "markdownhelper.default-toc-depth": {
+				"type": "integer",
+				"default": 2,
+				"description": ""
+			  },
+			  "markdownhelper.default-toc-title": {
+				"type": "string",
+				"default": "Contents",
+				"description": ""
+			  },
+			  "markdownhelper.default-number-sections": {
+				"type": "boolean",
+				"default": true,
+				"description": ""
+			  },
+			  "markdownhelper.default-css": {
+				"type": "string",
+				"default": "null",
+				"description": ""
+			  }
 			}
-		}
+		  }
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
@@ -99,7 +103,6 @@
 	},
 	"dependencies": {
 		"js-yaml": "^4.1.0",
-		"node-pandoc": "^0.3.0",
-		"vsce": "^2.9.1"
+		"node-pandoc": "^0.3.0"
 	}
 }
