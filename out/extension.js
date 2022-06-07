@@ -339,7 +339,7 @@ function pickPandocArgs() {
         ];
         let result = yield vscode.window.showQuickPick(items, {
             // placeHolder: 'eins, zwei or drei',
-            title: "Pick desired pandoc settings",
+            title: "Pick desired pandoc settings!!!",
             canPickMany: true
         });
         if (!result) {
