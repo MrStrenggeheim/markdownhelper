@@ -32,12 +32,11 @@ function activate(context) {
         // console.log(pickedArgs);
         (_b = vscode.window.activeTextEditor) === null || _b === void 0 ? void 0 : _b.insertSnippet(header, new vscode.Position(0, 0));
     }));
-
-
     let buildFileCommand = vscode.commands.registerCommand('markdownhelper.buildFile', () => __awaiter(this, void 0, void 0, function* () {
         var _c, _d;
         let file = (_c = vscode.window.activeTextEditor) === null || _c === void 0 ? void 0 : _c.document;
         let filePath = file === null || file === void 0 ? void 0 : file.fileName;
+        // TODO : extract information from yaml header 
         // read-all.js
         const fs = require('fs');
         const yaml = require('js-yaml');
@@ -47,8 +46,7 @@ function activate(context) {
         let fileContents = fs.readFileSync(filePath, 'utf8');
         // remove comments
         let regex = /<!--(.)*?-->/s;
-        // add s for including new line to dot; 
-        // adding ? after * for making it non greedy (only next occur) of -->
+        // add s for including new line to dot; adding ? after * for making it non greedy (only next occur) of -->
         while (fileContents.search("<!--") != -1)
             fileContents = fileContents.replace(regex, '');
         // split header
@@ -60,7 +58,7 @@ function activate(context) {
             "    output-path: ." + path.sep + filename + "Out.html\n" +
             "    standalone: true\n" +
             "    pandoc-args: []\n";
-        // console.log(fileParts[0] == "");
+        console.log(fileParts[0] == "");
         if (fileParts.length < 3 || fileParts[0] != "") {
             vscode.window.showWarningMessage("No correct YAML Header found. Defaulting important information...");
         }
@@ -70,7 +68,7 @@ function activate(context) {
         }
         // parse header into object
         let data = yaml.load(yamlHeader);
-        console.log("header: \n")
+        console.log("header: \n");
         console.log(data);
         let outputPath;
         let pandocArgs = [];
@@ -107,10 +105,8 @@ function activate(context) {
                 pandocArgs = selectedOutput["pandoc-args"] ? selectedOutput["pandoc-args"] : [];
             }
         }
-
         // load settings
         // console.log(vscode.workspace.getConfiguration('markdownhelper'));
-        
         // pandocArgs.push("--from=markdown");
         pandocArgs.push("-o");
         pandocArgs.push(outputPath);
@@ -145,7 +141,6 @@ function activate(context) {
                 pandocArgs.push("--css");
                 pandocArgs.push(selectedOutput["css"]);
             }
-            
             // variables
             // titel und athor selber übergeben
             if (selectedOutput["toc-title"]) {
@@ -163,11 +158,10 @@ function activate(context) {
         console.log(pandocArgs);
         // make pandoc execute in the right folder
         process.chdir(path.dirname(filePath));
-
         const callback = (error, result) => {
             if (error)
                 console.error("Error: " + error);
-            vscode.window.showInformationMessage("Executed with args:\n" + pandocArgs);
+            vscode.window.showInformationMessage("Executed with args:\n" + pandocArgs.toString());
             return console.log("result: " + result), result;
         };
         // pandoc befehl
@@ -192,8 +186,6 @@ function activate(context) {
         // terminal.sendText(commandString);
         // // terminal.dispose();
     }));
-
-
     context.subscriptions.push(createHeaderCommand);
     context.subscriptions.push(buildFileCommand);
 }
@@ -255,7 +247,7 @@ function createFullHeader(title, author, date, seperator, format) {
             "  - variant: " + format + "\n" +
             "    output-path: ." + seperator + filename + "Out." + outputFileExtension + "\n" +
             "    to: " + format + "\n" +
-            "    pdf-engine: " + settings["default-pdf-engine"] + "\n" + 
+            "    pdf-engine: " + settings["default-pdf-engine"] + "\n" +
             "    standalone: " + settings["default-standalone"] + "\n" +
             "    self-contained: " + settings["default-self-contained"] + "\n" +
             "    toc: " + settings["default-toc"] + "\n" +
@@ -281,10 +273,12 @@ function createFullHeader(title, author, date, seperator, format) {
                         header += ("    css: " + fileUri[0].fsPath + "\n");
                     }
                 });
-            } else if (includeCSS == "Default") {
-                header += "    css: " + settings["default-css"] + "\n";
-            } else {
-                header += "    css: null\n";
+            }
+            else if (includeCSS == "Default") {
+                header += ("    css: " + settings["default-css"] + "\n");
+            }
+            else {
+                header += ("	css: null\n");
             }
         }
         header += ("    pandoc-args: " + "[]" + "\n");
@@ -373,4 +367,3 @@ function pickPandocArgs() {
 }
 exports.pickPandocArgs = pickPandocArgs;
 //# sourceMappingURL=extension.js.map
-//test

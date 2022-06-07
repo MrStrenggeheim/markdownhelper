@@ -285,7 +285,7 @@ export async function createFullHeader(title:string, author:string, date:string,
 
 	if (format == "html" || format == "beamer") {
 		// ask if including css file
-		let includeCSS = await vscode.window.showQuickPick(["No", "Yes"], {
+		let includeCSS = await vscode.window.showQuickPick(["Default", "No", "Yes"], {
 			title: "Include CSS-File?"
 		}
 		);
@@ -303,7 +303,12 @@ export async function createFullHeader(title:string, author:string, date:string,
 					header += ("    css: " + fileUri[0].fsPath + "\n");
 				}
 			});
+		} else if (includeCSS == "Default") {
+			header += ("    css: " + settings["default-css"] + "\n");
+		} else {
+			header += ("	css: null\n");
 		}
+
 	}
 
 	header += (
