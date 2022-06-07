@@ -2,7 +2,7 @@
 	"name": "markdownhelper",
 	"displayName": "MarkdownHelper",
 	"description": "Helps you writing Markdown",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"publisher": "FlorianHunecke",
 	"repository": {
 		"type": "git",
@@ -34,47 +34,47 @@
 			"title": "MarkdownHelperSettings",
 			"properties": {
 				"markdownhelper.default-pdf-engine": {
-                    "type": "string",
-                    "default": "null",
-                    "description": ""
-                },
-			  "markdownhelper.default-standalone": {
-				"type": "boolean",
-				"default": true,
-				"description": ""
-			  },
-			  "markdownhelper.default-self-contained": {
-				"type": "boolean",
-				"default": false,
-				"description": ""
-			  },
-			  "markdownhelper.default-toc": {
-				"type": "boolean",
-				"default": true,
-				"description": ""
-			  },
-			  "markdownhelper.default-toc-depth": {
-				"type": "integer",
-				"default": 2,
-				"description": ""
-			  },
-			  "markdownhelper.default-toc-title": {
-				"type": "string",
-				"default": "Contents",
-				"description": ""
-			  },
-			  "markdownhelper.default-number-sections": {
-				"type": "boolean",
-				"default": true,
-				"description": ""
-			  },
-			  "markdownhelper.default-css": {
-				"type": "string",
-				"default": "null",
-				"description": ""
-			  }
+					"type": "string",
+					"default": "null",
+					"description": ""
+				},
+				"markdownhelper.default-standalone": {
+					"type": "boolean",
+					"default": true,
+					"description": ""
+				},
+				"markdownhelper.default-self-contained": {
+					"type": "boolean",
+					"default": false,
+					"description": ""
+				},
+				"markdownhelper.default-toc": {
+					"type": "boolean",
+					"default": true,
+					"description": ""
+				},
+				"markdownhelper.default-toc-depth": {
+					"type": "integer",
+					"default": 2,
+					"description": ""
+				},
+				"markdownhelper.default-toc-title": {
+					"type": "string",
+					"default": "Contents",
+					"description": ""
+				},
+				"markdownhelper.default-number-sections": {
+					"type": "boolean",
+					"default": true,
+					"description": ""
+				},
+				"markdownhelper.default-css": {
+					"type": "string",
+					"default": "null",
+					"description": ""
+				}
 			}
-		  }
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
