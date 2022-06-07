@@ -71,24 +71,24 @@ export function activate(context: vscode.ExtensionContext) {
 
 		// parse header into object
 		let data = yaml.load(yamlHeader);
+        console.log("header: \n")
 		console.log(data);
 		
 		let outputPath;
-		let pandocArgs;
+        let pandocArgs: string[] = [];
 		
 		let selectedOutput;
 
 		// variablen bestimmen (alle zusätzlichen zu title author date)
 		if (data.output == undefined) {
-			console.log("output undefined")
-			outputPath = "./out.pdf"
-			pandocArgs = [];
+            outputPath = "./out.pdf";
+            console.log("Output undefined, defaulting to no args and -o=" + outputPath);
 		} else {
 			let outputLen = data.output.length;
 			if (outputLen < 1) {
-				// no output set -> default (html)
-				outputPath = "./out.html";
-				pandocArgs = [];
+                // no output set -> default (html)
+                outputPath = "./out.html";
+                console.log("no output variant set, defaulting to no args and -o=" + outputPath);
 			} else {
 				// take it
 				selectedOutput = data.output[0];
@@ -111,12 +111,11 @@ export function activate(context: vscode.ExtensionContext) {
 				pandocArgs = selectedOutput["pandoc-args"] ? selectedOutput["pandoc-args"] : [];
 			}
 		}
+
+		// load settings
+        // console.log(vscode.workspace.getConfiguration('markdownhelper'));
 		
-		const callback = (error: any, result: any) => {
-			if (error) console.error("Error: " + error);
-			vscode.window.showInformationMessage("Done");
-			return console.log("result: " + result), result
-		}
+
 
 		// pandocArgs.push("--from=markdown");
 		pandocArgs.push("-o");
@@ -131,6 +130,9 @@ export function activate(context: vscode.ExtensionContext) {
 			if (selectedOutput["standalone"]) {
 				pandocArgs.push("-s");
 			}
+            if (selectedOutput["self-contained"]) {
+                pandocArgs.push("--self-contained");
+            }
 			if (selectedOutput.toc) {
 				pandocArgs.push("--toc");
 				let tocDepth = selectedOutput["toc-depth"];
@@ -149,7 +151,6 @@ export function activate(context: vscode.ExtensionContext) {
 			if (selectedOutput["css"] != undefined) {
 				pandocArgs.push("--css");
 				pandocArgs.push(selectedOutput["css"]);
-				pandocArgs.push("--self-contained")
 			}
 
 			// variables
@@ -171,6 +172,14 @@ export function activate(context: vscode.ExtensionContext) {
 	
 		// make pandoc execute in the right folder
 		process.chdir(path.dirname(filePath));
+
+		const callback = (error: any, result: any) => {
+			if (error) console.error("Error: " + error);
+			vscode.window.showInformationMessage("Executed with args:\n" + pandocArgs.toString());
+
+			return console.log("result: " + result), result
+		}
+
 		// pandoc befehl
 		nodePandoc(filePath, pandocArgs, callback);
 
@@ -257,22 +266,24 @@ export async function createFullHeader(title:string, author:string, date:string,
 			break;
 	}
 
-	let header = ("---\ntitle: "+ title +"\n" +
-		"author: " + author + "\n" +
-		"date: " + date + "\n" +
-		"output:\n" +
-		"  - variant: "+ format +"\n" +
-		"    output-path: ."+ seperator + filename + "Out."+ outputFileExtension +"\n" +
-		"    to: "+ format +"\n" +
-		"    standalone: true\n" +
-		"    toc: true\n" +
-		"    toc-depth: 2\n" + 
-		"    toc-title: Contents\n" +
-		"    number-sections: true\n"
-	);
+	let settings = vscode.workspace.getConfiguration('markdownhelper');
+	let header = ("---\ntitle: " + title + "\n" +
+	"author: " + author + "\n" +
+	"date: " + date + "\n" +
+	"output:\n" +
+	"  - variant: " + format + "\n" +
+	"    output-path: ." + seperator + filename + "Out." + outputFileExtension + "\n" +
+	"    to: " + format + "\n" +
+	"    pdf-engine: " + settings["default-pdf-engine"] + "\n" + 
+	"    standalone: " + settings["default-standalone"] + "\n" +
+	"    self-contained: " + settings["default-self-contained"] + "\n" +
+	"    toc: " + settings["default-toc"] + "\n" +
+	"    toc-depth: " + settings["default-toc-depth"] + "\n" +
+	"    toc-title: " + settings["default-toc-title"] + "\n" +
+	"    number-sections: " + settings["default-number-sections"] + "\n");
 
 
-	if (format == "html") {
+	if (format == "html" || format == "beamer") {
 		// ask if including css file
 		let includeCSS = await vscode.window.showQuickPick(["No", "Yes"], {
 			title: "Include CSS-File?"
