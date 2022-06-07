@@ -193,9 +193,9 @@ function activate(context) {
         // // terminal.dispose();
     }));
 
-    let addVariantCommand = vscode.commands.registerCommand('markdownhelper.addVariant', () => __awaiter(this, void 0, void 0, function* () {
-        vscode.window.showInformationMessage("not yet implemented");
-    }));
+    // let addVariantCommand = vscode.commands.registerCommand('markdownhelper.addVariant', () => __awaiter(this, void 0, void 0, function* () {
+    //     vscode.window.showInformationMessage("not yet implemented");
+    // }));
     context.subscriptions.push(createHeaderCommand);
     context.subscriptions.push(buildFileCommand);
     context.subscriptions.push(addVariantCommand);

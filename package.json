@@ -2,7 +2,7 @@
 	"name": "markdownhelper",
 	"displayName": "MarkdownHelper",
 	"description": "Helps you writing Markdown",
-	"version": "0.2.1",
+	"version": "0.2.0",
 	"publisher": "FlorianHunecke",
 	"repository": {
 		"type": "git",
@@ -28,10 +28,6 @@
 			{
 				"command": "markdownhelper.buildFile",
 				"title": "MarkdownHelper: Build File"
-			},
-            {
-				"command": "markdownhelper.addVariant",
-				"title": "MarkdownHelper: Add Variant"
 			}
 		],
 		"configuration": {
