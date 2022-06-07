@@ -2,7 +2,7 @@
 	"name": "markdownhelper",
 	"displayName": "MarkdownHelper",
 	"description": "Helps you writing Markdown",
-	"version": "0.2.0",
+	"version": "0.0.2",
 	"publisher": "FlorianHunecke",
 	"repository": {
 		"type": "git",
