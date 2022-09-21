@@ -33,6 +33,12 @@ export function activate(context: vscode.ExtensionContext) {
 	let buildFileCommand = vscode.commands.registerCommand('markdownhelper.buildFile', async () => {
 		let file = vscode.window.activeTextEditor?.document;
 		let filePath = file?.fileName;
+		let settings = vscode.workspace.getConfiguration('markdownhelper');
+
+		// Safe File if desired
+		if (settings['autosafe-on-build']) {
+			vscode.window.activeTextEditor?.document.save();
+		}
 
 		// TODO : extract information from yaml header 
 		// read-all.js

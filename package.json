@@ -2,7 +2,7 @@
 	"name": "markdownhelper",
 	"displayName": "MarkdownHelper",
 	"description": "Helps you writing Markdown",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"publisher": "FlorianHunecke",
 	"repository": {
 		"type": "git",
@@ -31,7 +31,7 @@
 			}
 		],
 		"configuration": {
-			"title": "MarkdownHelperSettings",
+			"title": "MarkdownHelper",
 			"properties": {
 				"markdownhelper.default-pdf-engine": {
 					"type": "string",
@@ -71,7 +71,12 @@
 				"markdownhelper.default-css": {
 					"type": "string",
 					"default": "null",
-					"description": ""
+					"description": "Use this url as default css file"
+				},
+				"markdownhelper.autosafe-on-build": {
+					"type": "boolean",
+					"default": "true",
+					"description": "Save file when building"
 				}
 			}
 		}

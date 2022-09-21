@@ -33,9 +33,14 @@ function activate(context) {
         (_b = vscode.window.activeTextEditor) === null || _b === void 0 ? void 0 : _b.insertSnippet(header, new vscode.Position(0, 0));
     }));
     let buildFileCommand = vscode.commands.registerCommand('markdownhelper.buildFile', () => __awaiter(this, void 0, void 0, function* () {
-        var _c, _d;
+        var _c, _d, _e;
         let file = (_c = vscode.window.activeTextEditor) === null || _c === void 0 ? void 0 : _c.document;
         let filePath = file === null || file === void 0 ? void 0 : file.fileName;
+        let settings = vscode.workspace.getConfiguration('markdownhelper');
+        // Safe File if desired
+        if (settings['autosafe-on-build']) {
+            (_d = vscode.window.activeTextEditor) === null || _d === void 0 ? void 0 : _d.document.save();
+        }
         // TODO : extract information from yaml header 
         // read-all.js
         const fs = require('fs');
@@ -51,7 +56,7 @@ function activate(context) {
             fileContents = fileContents.replace(regex, '');
         // split header
         let fileParts = fileContents.split("---");
-        let filename = path.parse((_d = vscode.window.activeTextEditor) === null || _d === void 0 ? void 0 : _d.document.fileName).name;
+        let filename = path.parse((_e = vscode.window.activeTextEditor) === null || _e === void 0 ? void 0 : _e.document.fileName).name;
         let yamlHeader = "title: " + filename + "\n" +
             "output:\n" +
             "  - variant: pdf\n" +
