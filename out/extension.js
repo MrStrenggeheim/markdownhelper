@@ -9,11 +9,63 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.pickPandocArgs = exports.pickString = exports.createHeader = exports.createFullHeader = exports.getAuthors = exports.getTitle = exports.deactivate = exports.activate = void 0;
+exports.getWebviewContent = exports.pickPandocArgs = exports.pickString = exports.createHeader = exports.createFullHeader = exports.getAuthors = exports.getTitle = exports.deactivate = exports.activate = void 0;
 const vscode = require("vscode");
 // this method is called when your extension is activated
 function activate(context) {
     console.log('Markdownhelper is now active!');
+    let mhlog = vscode.window.createOutputChannel("MarkdownHelper Log");
+    // Start Live View
+    let startLiveViewCommand = vscode.commands.registerCommand('markdownhelper.startLiveView', () => __awaiter(this, void 0, void 0, function* () {
+        const path = require("path");
+        const fs = require("fs");
+        // html file path
+        // let mdFilePath = vscode.window.activeTextEditor?.document.fileName;
+        // let dirName = path.dirname(mdFilePath);
+        let htmlFilePath = "";
+        yield vscode.window.showOpenDialog({
+            canSelectMany: false,
+            openLabel: 'Live View',
+            filters: {
+                'Web files': ['html'],
+                'All files': ['*']
+            }
+        }).then(fileUri => {
+            if (fileUri && fileUri[0]) {
+                htmlFilePath = fileUri[0].fsPath;
+            }
+        });
+        if (htmlFilePath == "") {
+            vscode.window.showErrorMessage("Could not load LiveView file");
+            return;
+        }
+        // Create and show a new webview
+        const panel = vscode.window.createWebviewPanel('markdownhelperLiveView', // Identifies the type of the webview. Used internally
+        'Live View', // Title of the panel displayed to the user
+        vscode.ViewColumn.Beside, // Editor column to show the new webview panel in.
+        {} // Webview options. More on these later.
+        );
+        const updateWebview = () => {
+            panel.title = path.parse(htmlFilePath).name;
+            panel.webview.html = fs.readFileSync(htmlFilePath, 'utf8');
+        };
+        updateWebview();
+        var watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(vscode.Uri.file(htmlFilePath), '*'));
+        watcher.onDidChange(() => {
+            updateWebview();
+        });
+        watcher.onDidDelete(() => {
+            watcher.dispose();
+            panel.dispose();
+            vscode.window.showInformationMessage("File deleted. Build again!");
+        });
+        // const interval = setInterval(updateWebview, 99000);
+        panel.onDidDispose(() => {
+            // When the panel is closed, cancel any future updates to the webview content
+            //   clearInterval(interval);
+            watcher.dispose();
+        }, null, context.subscriptions);
+    }));
     // Create Header
     let createHeaderCommand = vscode.commands.registerCommand('markdownhelper.createHeader', () => __awaiter(this, void 0, void 0, function* () {
         var _a, _b;
@@ -166,7 +218,8 @@ function activate(context) {
         const callback = (error, result) => {
             if (error)
                 console.error("Error: " + error);
-            vscode.window.showInformationMessage("Executed with args:\n" + pandocArgs.toString());
+            console.log("Executed with args:\n" + pandocArgs.toString());
+            mhlog.appendLine("Executed with args:\n" + pandocArgs.toString());
             return console.log("result: " + result), result;
         };
         // pandoc befehl
@@ -191,6 +244,7 @@ function activate(context) {
         // terminal.sendText(commandString);
         // // terminal.dispose();
     }));
+    context.subscriptions.push(startLiveViewCommand);
     context.subscriptions.push(createHeaderCommand);
     context.subscriptions.push(buildFileCommand);
 }
@@ -371,4 +425,8 @@ function pickPandocArgs() {
     });
 }
 exports.pickPandocArgs = pickPandocArgs;
+function getWebviewContent() {
+    return `hello there`;
+}
+exports.getWebviewContent = getWebviewContent;
 //# sourceMappingURL=extension.js.map

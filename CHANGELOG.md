@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.1]
 ## [0.0.2]
 ## [0.0.3]
-
 ### Added
 - Support for Auto-Save when buiding
 - Setting to toggle Auto-Save
+
+## [0.1.0]
+### Added
+- New Command: **LivePreview** \
+  This Preview allows you to live-preview a built html file
+- Keybindings

@@ -2,7 +2,7 @@
 	"name": "markdownhelper",
 	"displayName": "MarkdownHelper",
 	"description": "Helps you writing Markdown",
-	"version": "0.0.3",
+	"version": "0.1.0",
 	"publisher": "FlorianHunecke",
 	"repository": {
 		"type": "git",
@@ -16,7 +16,8 @@
 	],
 	"activationEvents": [
 		"onCommand:markdownhelper.createHeader",
-		"onCommand:markdownhelper.buildFile"
+		"onCommand:markdownhelper.buildFile",
+		"onCommand:markdownhelper.startLiveView"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -28,8 +29,26 @@
 			{
 				"command": "markdownhelper.buildFile",
 				"title": "MarkdownHelper: Build File"
+			},
+			{
+				"command": "markdownhelper.startLiveView",
+				"title": "MarkdownHelper: Start Live View"
 			}
 		],
+        "keybindings": [
+            {
+                "command": "markdownhelper.buildFile",
+                "key": "alt+s",
+                "mac": "alt+s",
+				"when": "editorLangId == 'markdown'"
+            },
+			{
+                "command": "markdownhelper.startLiveView",
+                "key": "ctrl+shift+v",
+                "mac": "ctrl+shift+v",
+				"when": "editorLangId == 'markdown'"
+            }
+        ],
 		"configuration": {
 			"title": "MarkdownHelper",
 			"properties": {

@@ -5,6 +5,76 @@ import * as vscode from 'vscode';
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Markdownhelper is now active!');
 
+	let mhlog = vscode.window.createOutputChannel("MarkdownHelper Log");
+
+	// Start Live View
+	let startLiveViewCommand = vscode.commands.registerCommand('markdownhelper.startLiveView', async () => {
+		const path = require("path");
+		const fs = require("fs");
+
+		// html file path
+		// let mdFilePath = vscode.window.activeTextEditor?.document.fileName;
+		// let dirName = path.dirname(mdFilePath);
+		let htmlFilePath = "";
+
+		await vscode.window.showOpenDialog({
+			canSelectMany: false,
+			openLabel: 'Live View',
+			filters: {
+			   'Web files': ['html'],
+			   'All files': ['*']
+		   }
+		}).then(fileUri => {
+			if (fileUri && fileUri[0]) {
+				htmlFilePath = fileUri[0].fsPath;
+			}
+		});
+		
+		if (htmlFilePath == "") {
+			vscode.window.showErrorMessage("Could not load LiveView file");
+			return;
+		}
+
+		// Create and show a new webview
+		const panel = vscode.window.createWebviewPanel(
+			'markdownhelperLiveView', // Identifies the type of the webview. Used internally
+			'Live View', // Title of the panel displayed to the user
+			vscode.ViewColumn.Beside, // Editor column to show the new webview panel in.
+			{} // Webview options. More on these later.
+		  );
+		
+		const updateWebview = () => {
+			panel.title = path.parse(htmlFilePath).name;
+			panel.webview.html = fs.readFileSync(htmlFilePath, 'utf8');
+		}
+
+		updateWebview();
+
+		var watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(vscode.Uri.file(htmlFilePath), '*'));
+		
+		watcher.onDidChange(() => {
+			updateWebview();
+		});
+		watcher.onDidDelete(() => {
+			watcher.dispose();
+			panel.dispose();
+			vscode.window.showInformationMessage("File deleted. Build again!");
+		});
+
+		// const interval = setInterval(updateWebview, 99000);
+
+		panel.onDidDispose(
+			() => {
+			  // When the panel is closed, cancel any future updates to the webview content
+			//   clearInterval(interval);
+				watcher.dispose();
+			},
+			null,
+			context.subscriptions
+		  );
+	});
+
+	
 	// Create Header
 	let createHeaderCommand = vscode.commands.registerCommand('markdownhelper.createHeader', async () => {
 		var path = require("path");
@@ -181,7 +251,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 		const callback = (error: any, result: any) => {
 			if (error) console.error("Error: " + error);
-			vscode.window.showInformationMessage("Executed with args:\n" + pandocArgs.toString());
+			console.log("Executed with args:\n" + pandocArgs.toString());
+			mhlog.appendLine("Executed with args:\n" + pandocArgs.toString());
 
 			return console.log("result: " + result), result
 		}
@@ -223,6 +294,7 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 
+	context.subscriptions.push(startLiveViewCommand);
 	context.subscriptions.push(createHeaderCommand);
 	context.subscriptions.push(buildFileCommand);
 }
@@ -406,5 +478,11 @@ export async function pickPandocArgs() : Promise<vscode.QuickPickItem[]> {
 	// 	resolve(result);
 	// });	
 	// return prom;
+
+}
+
+export function getWebviewContent() {
+	
+	return `hello there`;
 
 }
