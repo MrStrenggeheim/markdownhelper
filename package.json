@@ -2,7 +2,7 @@
 	"name": "markdownhelper",
 	"displayName": "MarkdownHelper",
 	"description": "Helps you writing Markdown",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"publisher": "FlorianHunecke",
 	"repository": {
 		"type": "git",
@@ -17,7 +17,8 @@
 	"activationEvents": [
 		"onCommand:markdownhelper.createHeader",
 		"onCommand:markdownhelper.buildFile",
-		"onCommand:markdownhelper.startLiveView"
+		"onCommand:markdownhelper.startLiveFileView",
+		"onCommand:markdownhelper.startLiveEditorView"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -31,8 +32,12 @@
 				"title": "MarkdownHelper: Build File"
 			},
 			{
-				"command": "markdownhelper.startLiveView",
-				"title": "MarkdownHelper: Start Live View"
+				"command": "markdownhelper.startLiveFileView",
+				"title": "MarkdownHelper: Start Live File View"
+			},
+			{
+				"command": "markdownhelper.startLiveEditorView",
+				"title": "MarkdownHelper: Start Live Editor View"
 			}
 		],
         "keybindings": [
@@ -43,7 +48,7 @@
 				"when": "editorLangId == 'markdown'"
             },
 			{
-                "command": "markdownhelper.startLiveView",
+                "command": "markdownhelper.startLiveEditorView",
                 "key": "ctrl+shift+v",
                 "mac": "ctrl+shift+v",
 				"when": "editorLangId == 'markdown'"
@@ -52,6 +57,11 @@
 		"configuration": {
 			"title": "MarkdownHelper",
 			"properties": {
+				"markdownhelper.default-extensions": {
+					"type": "string",
+					"default": "emoji+hard_line_breaks",
+					"description": "'+'-seperated extensions for pandoc"
+				},
 				"markdownhelper.default-pdf-engine": {
 					"type": "string",
 					"default": "null",

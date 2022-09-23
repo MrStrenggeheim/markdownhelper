@@ -1,20 +1,18 @@
 import * as vscode from 'vscode';
 
+let mhlog = vscode.window.createOutputChannel("MarkdownHelper Log");
 
 // this method is called when your extension is activated
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Markdownhelper is now active!');
 
-	let mhlog = vscode.window.createOutputChannel("MarkdownHelper Log");
 
-	// Start Live View
-	let startLiveViewCommand = vscode.commands.registerCommand('markdownhelper.startLiveView', async () => {
+	// Start Live File View
+	let startLiveFileViewCommand = vscode.commands.registerCommand('markdownhelper.startLiveFileView', async () => {
 		const path = require("path");
 		const fs = require("fs");
 
 		// html file path
-		// let mdFilePath = vscode.window.activeTextEditor?.document.fileName;
-		// let dirName = path.dirname(mdFilePath);
 		let htmlFilePath = "";
 
 		await vscode.window.showOpenDialog({
@@ -66,8 +64,71 @@ export function activate(context: vscode.ExtensionContext) {
 		panel.onDidDispose(
 			() => {
 			  // When the panel is closed, cancel any future updates to the webview content
-			//   clearInterval(interval);
+			  // clearInterval(interval);
 				watcher.dispose();
+			},
+			null,
+			context.subscriptions
+		  );
+	});
+
+	let startLiveEditorViewCommand = vscode.commands.registerCommand('markdownhelper.startLiveEditorView', async () => {
+		const path = require("path");
+		const fs = require("fs");
+
+		// Create and show a new webview
+		const panel = vscode.window.createWebviewPanel(
+			'markdownhelperLiveView', // Identifies the type of the webview. Used internally
+			'Live View', // Title of the panel displayed to the user
+			vscode.ViewColumn.Beside, // Editor column to show the new webview panel in.
+			{} // Webview options. More on these later.
+		  );
+		
+		const updateWebview = async () => {
+			let activeFileName = vscode.window.activeTextEditor?.document.fileName;
+			if (!activeFileName) {
+				vscode.window.showErrorMessage("Could not find active File");
+				return;
+			}
+			panel.title = path.parse(activeFileName).name;
+
+			let data = getYamlHeaderData(activeFileName);
+			console.log(data);
+			let pandocArgs = await parseYamlHeader(data, false);
+			console.log("args: "+ pandocArgs);
+
+			const callback = (error: any, result: any) => {
+				if (error) {
+					console.error(error);
+					return;
+				}
+				console.log("Executed with args:\n" + pandocArgs.toString());
+				// mhlog.appendLine("Executed with args:\n" + pandocArgs.toString());
+		
+				panel.webview.html = result;
+				return console.log("result: " + result), result
+			}
+
+			executePandoc(activeFileName, pandocArgs, callback);
+
+			
+
+		}
+
+		updateWebview();
+
+		
+
+		let listener = vscode.workspace.onDidSaveTextDocument((document) => {
+			if (document.languageId === "markdown" && document.uri.scheme === "file") {
+				updateWebview();
+			}
+		})
+
+		panel.onDidDispose(
+			() => {
+			  // When the panel is closed, cancel any future updates to the webview content
+			  listener.dispose();
 			},
 			null,
 			context.subscriptions
@@ -92,17 +153,21 @@ export function activate(context: vscode.ExtensionContext) {
 		// let user choose what the desired output will be (html, pdf, beamer, revealjs)
 		let formats = ["html", "pdf", "beamer", "revealjs"];
 		let chosenFormat = await pickString(formats);
+		if (chosenFormat == "" || !chosenFormat) {
+			return;
+		}
 
-		let header = new vscode.SnippetString(await createFullHeader(title, author, date, path.sep, chosenFormat));
-
-		// console.log(pickedArgs);
+		let header = new vscode.SnippetString(await createFullHeader(title, author, date, chosenFormat));
 		
 		vscode.window.activeTextEditor?.insertSnippet(header, new vscode.Position(0, 0));
 	});
 
 	let buildFileCommand = vscode.commands.registerCommand('markdownhelper.buildFile', async () => {
-		let file = vscode.window.activeTextEditor?.document;
-		let filePath = file?.fileName;
+		let filePath = vscode.window.activeTextEditor?.document.fileName;
+		if (!filePath) {
+			vscode.window.showErrorMessage("Could not find Filename");
+			return;
+		}
 		let settings = vscode.workspace.getConfiguration('markdownhelper');
 
 		// Safe File if desired
@@ -110,168 +175,25 @@ export function activate(context: vscode.ExtensionContext) {
 			vscode.window.activeTextEditor?.document.save();
 		}
 
-		// TODO : extract information from yaml header 
-		// read-all.js
-		const fs = require('fs');
-		const yaml = require('js-yaml');
-		const nodePandoc = require("node-pandoc");
+		// get info of yaml header
 		const path = require("path");
 
-		// read file
-		let fileContents = fs.readFileSync(filePath, 'utf8');
-		// remove comments
-		let regex = /<!--(.)*?-->/s;
-		// add s for including new line to dot; adding ? after * for making it non greedy (only next occur) of -->
-		while (fileContents.search("<!--") != -1)
-			fileContents = fileContents.replace(regex,'');
-		// split header
-		let fileParts = fileContents.split("---");
-		
-		
-		let filename = path.parse(vscode.window.activeTextEditor?.document.fileName).name;
-		let yamlHeader =
-		"title: "+ filename +"\n" +
-		"output:\n" +
-		"  - variant: pdf\n" +
-		"    output-path: ."+ path.sep + filename +"Out.html\n" +
-		"    standalone: true\n" +
-		"    pandoc-args: []\n";
-
-		console.log(fileParts[0] == "");
-		if (fileParts.length < 3 || fileParts[0] != "") {
-			vscode.window.showWarningMessage("No correct YAML Header found. Defaulting important information...");
-		} else {
-			// extract yaml Header
-			yamlHeader = fileParts[1];
-		}
-
-		// parse header into object
-		let data = yaml.load(yamlHeader);
-        console.log("header: \n")
-		console.log(data);
-		
-		let outputPath;
-        let pandocArgs: string[] = [];
-		
-		let selectedOutput;
-
-		// variablen bestimmen (alle zusätzlichen zu title author date)
-		if (data.output == undefined) {
-            outputPath = "./out.pdf";
-            console.log("Output undefined, defaulting to no args and -o=" + outputPath);
-		} else {
-			let outputLen = data.output.length;
-			if (outputLen < 1) {
-                // no output set -> default (html)
-                outputPath = "./out.html";
-                console.log("no output variant set, defaulting to no args and -o=" + outputPath);
-			} else {
-				// take it
-				selectedOutput = data.output[0];
-
-				if (outputLen > 1) {
-					let outputStrings = [outputLen];
-					for (var i = 0; i < outputLen; i++) {
-						outputStrings[i] = data.output[i].variant;
-					}
-					let pickedOutputString = await pickString(outputStrings);
-					for (var i = 0; i < outputLen; i++) {
-						if (data.output[i].variant == pickedOutputString) {
-							selectedOutput = data.output[i];
-							break;
-						}
-					}
-				}
-
-				outputPath = selectedOutput["output-path"] ? selectedOutput["output-path"] : "./out.html";
-				pandocArgs = selectedOutput["pandoc-args"] ? selectedOutput["pandoc-args"] : [];
-			}
-		}
-
-		// load settings
-        // console.log(vscode.workspace.getConfiguration('markdownhelper'));
-		
-
-
-		// pandocArgs.push("--from=markdown");
-		pandocArgs.push("-o");
-		pandocArgs.push(outputPath);
-
-		// read additional arguments
-		if (data.output != undefined) {
-			if (selectedOutput["to"] != undefined) {
-				pandocArgs.push("--to");
-				pandocArgs.push(selectedOutput["to"]);
-			}
-			if (selectedOutput["standalone"]) {
-				pandocArgs.push("-s");
-			}
-            if (selectedOutput["self-contained"]) {
-                pandocArgs.push("--self-contained");
-            }
-			if (selectedOutput.toc) {
-				pandocArgs.push("--toc");
-				let tocDepth = selectedOutput["toc-depth"];
-				if (tocDepth > 0 && tocDepth <= 7) {
-					pandocArgs.push("--toc-depth");
-					pandocArgs.push(tocDepth);
-				}
-			}
-			if (selectedOutput["number-sections"])
-				pandocArgs.push("--number-sections");
-			let pdfEngine = selectedOutput["pdf-engine"];
-			if (pdfEngine != undefined) {
-				pandocArgs.push("--pdf-engine");
-				pandocArgs.push(pdfEngine); 
-			}
-			if (selectedOutput["css"] != undefined) {
-				pandocArgs.push("--css");
-				pandocArgs.push(selectedOutput["css"]);
-			}
-
-			// variables
-			// titel und athor selber übergeben
-			if (selectedOutput["toc-title"]) {
-				pandocArgs.push("--variable")
-				if (selectedOutput["toc-title"]) {
-					pandocArgs.push("toc-title="+selectedOutput["toc-title"]);
-				}
-			}
-
-			// metadata
-			pandocArgs.push("--metadata");
-			if (data.title != undefined) {
-				pandocArgs.push("title="+data["title"]);
-			}
-		}
+		let data = getYamlHeaderData(filePath);
+		let pandocArgs = await parseYamlHeader(data);
 		console.log(pandocArgs);
-	
-		// make pandoc execute in the right folder
-		process.chdir(path.dirname(filePath));
 
 		const callback = (error: any, result: any) => {
-			if (error) console.error("Error: " + error);
+			if (error) {
+				console.error("Error: " + error);
+				return;
+			}
 			console.log("Executed with args:\n" + pandocArgs.toString());
 			mhlog.appendLine("Executed with args:\n" + pandocArgs.toString());
-
+	
 			return console.log("result: " + result), result
 		}
-
-		// pandoc befehl
-		nodePandoc(filePath, pandocArgs, callback);
-
-
-
-			// if (data.output[0].toc_depth != undefined) {
-			// 	// mach was wenn toc_depth einen ewrt hat oder halt iwi gesetzt wurde
-			// }
-		// funktioniert: ['-o','C:\\Users\\Florian\\Dokumente\\VSCode Extension\\MarkdownHelper\\testFolder\\out.pdf']
-		// vscode.window.showInformationMessage(pandocArgs);
-
-
-
-
-
+		
+		executePandoc(filePath, pandocArgs, callback);
 
 
 		// ALTE IMPLEMENTIERUNG
@@ -294,7 +216,8 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 
-	context.subscriptions.push(startLiveViewCommand);
+	context.subscriptions.push(startLiveFileViewCommand);
+	context.subscriptions.push(startLiveEditorViewCommand);
 	context.subscriptions.push(createHeaderCommand);
 	context.subscriptions.push(buildFileCommand);
 }
@@ -303,18 +226,12 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {}
 
 
-
 // own input functions
 export async function getTitle(title: string) : Promise<string> {
 	let ret = "";
 	ret += await vscode.window.showInputBox({
 		value: title,
-		// valueSelection: [0,0],
-		placeHolder: 'Title',
-		// validateInput: text => {
-		// 	vscode.window.showInformationMessage(`Validating: ${text}`);
-		// 	return text === '123' ? 'Not 123!' : null;
-		// }
+		placeHolder: 'Title'
 	});
 	return ret.toString();
 }
@@ -328,39 +245,24 @@ export async function getAuthors() : Promise<string> {
 	return author.toString();
 }
 
-export async function createFullHeader(title:string, author:string, date:string, seperator:string, format:string) {
+export async function createFullHeader(title:string, author:string, date:string, format:string) {
 	const path = require("path");
 	let outputFileExtension;
 	let filename = path.parse(vscode.window.activeTextEditor?.document.fileName).name;
+	let settings = vscode.workspace.getConfiguration('markdownhelper');
 	
 	switch (format) {
 		case "pdf": case "beamer":
 			outputFileExtension = "pdf";
 			break;
-		case "html": case "revealjs":
-			outputFileExtension = "html";
-			break;
-		default:
+			case "html": case "revealjs":
+				outputFileExtension = "html";
+				break;
+				default:
 			break;
 	}
 
-	let settings = vscode.workspace.getConfiguration('markdownhelper');
-	let header = ("---\ntitle: " + title + "\n" +
-	"author: " + author + "\n" +
-	"date: " + date + "\n" +
-	"output:\n" +
-	"  - variant: " + format + "\n" +
-	"    output-path: ." + seperator + filename + "Out." + outputFileExtension + "\n" +
-	"    to: " + format + "\n" +
-	"    pdf-engine: " + settings["default-pdf-engine"] + "\n" + 
-	"    standalone: " + settings["default-standalone"] + "\n" +
-	"    self-contained: " + settings["default-self-contained"] + "\n" +
-	"    toc: " + settings["default-toc"] + "\n" +
-	"    toc-depth: " + settings["default-toc-depth"] + "\n" +
-	"    toc-title: " + settings["default-toc-title"] + "\n" +
-	"    number-sections: " + settings["default-number-sections"] + "\n");
-
-
+	let cssFile = "null";
 	if (format == "html" || format == "beamer") {
 		// ask if including css file
 		let includeCSS = await vscode.window.showQuickPick(["Default", "No", "Yes"], {
@@ -378,69 +280,206 @@ export async function createFullHeader(title:string, author:string, date:string,
 			   }
 			}).then(fileUri => {
 				if (fileUri && fileUri[0]) {
-					header += ("    css: " + fileUri[0].fsPath + "\n");
+					cssFile = fileUri[0].fsPath;
 				}
 			});
 		} else if (includeCSS == "Default") {
-			header += ("    css: " + settings["default-css"] + "\n");
-		} else {
-			header += ("	css: null\n");
+			cssFile = settings["default-css"];
 		}
-
 	}
 
-	header += (
-		"    pandoc-args: " + "[]" + "\n"
-	);
-
-	// later
-	// if (format == "html") {
-	// 	header += (
-	// 		"# Arguments for html output:\n" + 
-	// 		"document-css: style.css\n" +
-	// 		"mainfont: roboto\n" +
-	// 		"fontsize: 12pt\n" +
-	// 		"fontcolor: 1a1a1a\n" +
-	// 		"# linkcolor\n" +
-	// 		"# monofont\n" +
-	// 		"# monobackgroundcolor\n" +
-	// 		"# linestretch\n" +
-	// 		"# backgroundcolor\n" +
-	// 		"# margin-left, margin-right, margin-top, margin-bottom\n"				
-	// 	);
-	// }
-		
-	header += "---\n\n";
-
+	let header = 
+`---
+title: ${title}
+author: ${author}
+date: ${date}
+output:
+  - variant: ${format}
+    output-path: .${path.sep}${filename}Out.${outputFileExtension}
+    from: markdown+${settings["default-extensions"]}
+    to: ${format}
+    pdf-engine: ${settings["default-pdf-engine"]}
+    standalone: ${settings["default-standalone"]}
+    self-contained: ${settings["default-self-contained"]}
+    toc: ${settings["default-toc"]}
+    toc-depth: ${settings["default-toc-depth"]}
+    toc-title: ${settings["default-toc-title"]}
+    number-sections: ${settings["default-number-sections"]}
+    css: ${cssFile}
+    pandoc-args: []
+---\n\n`
+	// header = ("---\ntitle: " + title + "\n" +
+	// "author: " + author + "\n" +
+	// "date: " + date + "\n" +
+	// "output:\n" +
+	// "  - variant: " + format + "\n" +
+	// "    output-path: ." + seperator + filename + "Out." + outputFileExtension + "\n" +
+	// "    to: " + format + "\n" +
+	// "    pdf-engine: " + settings["default-pdf-engine"] + "\n" + 
+	// "    standalone: " + settings["default-standalone"] + "\n" +
+	// "    self-contained: " + settings["default-self-contained"] + "\n" +
+	// "    toc: " + settings["default-toc"] + "\n" +
+	// "    toc-depth: " + settings["default-toc-depth"] + "\n" +
+	// "    toc-title: " + settings["default-toc-title"] + "\n" +
+	// "    number-sections: " + settings["default-number-sections"] + "\n");
+	// "    pandoc-extensions: [\"hard_line_break\"]\n" + 
+	// "    pandoc-args: " + "[]" + "\n"
+	// );
 	return header;
 }
-	
 
-export function createHeader(title:string, author:string, date:string, setperator:string, items:vscode.QuickPickItem[]) {
+export function getYamlHeaderData(filePath:string) {
+	const fs = require('fs');
+	const yaml = require('js-yaml');
 	const path = require("path");
-	let header = ("---\ntitle: "+ title +"\n" +
-			"author: " + author + "\n" +
-			"date: " + date + "\n" +
-			"output:\n" +
-			"    - variant: pdf\n" +
-			"      output-path: ."+ setperator +"out.pdf\n" +
-			"      pandoc-args: []\n"
-			// "\t\t\ttoc: true\n" +
-			);
-	items.forEach(item => {
-		switch (item.label) {
-			case 'TOC':
-				header += "\t\t\ttoc: true\n";
-				header += "\t\t\ttoc-depth: 2\n";
-				break;		
-			default:
-				break;
-		}
-	}); {
 
+	// read file
+	let fileContents = fs.readFileSync(filePath, 'utf8');
+	// remove comments
+	let regex = /<!--(.)*?-->/s;
+	// add s for including new line to dot; adding ? after * for making it non greedy (only next occur) of -->
+	while (fileContents.search("<!--") != -1)
+		fileContents = fileContents.replace(regex,'');
+	// split header
+	let fileParts = fileContents.split("---");
+	
+	
+	let filename = path.parse(vscode.window.activeTextEditor?.document.fileName).name;
+	let yamlHeader =
+	"title: "+ filename +"\n" +
+	"output:\n" +
+	"  - variant: pdf\n" +
+	"    output-path: ."+ path.sep + filename +"Out.html\n" +
+	"    standalone: true\n" +
+	"    pandoc-args: []\n";
+
+	if (fileParts.length < 3 || fileParts[0] != "") {
+		vscode.window.showWarningMessage("No correct YAML Header found. Defaulting important information...");
+	} else {
+		// extract yaml Header
+		yamlHeader = fileParts[1];
 	}
-	header += "---\n\n";
-	return header;
+	console.log(yamlHeader);
+
+	// parse header into object
+	let data = yaml.load(yamlHeader);
+	// console.log("header: \n")
+	// console.log(data);
+	// console.log("-----");
+	return data;
+}
+
+export async function parseYamlHeader(data:any, buildIntoFile=true) {
+	let selectedOutput;
+	let outputPath;
+	let pandocArgs: string[] = [];
+
+	// variablen bestimmen (alle zusätzlichen zu title author date)
+	if (data.output == undefined) {
+		outputPath = "./out.pdf";
+		console.log("Output undefined, defaulting to no args and -o=" + outputPath);
+	} else {
+		let outputLen = data.output.length;
+		if (outputLen < 1) {
+			// no output set -> default (html)
+			outputPath = "./out.html";
+			console.log("no output variant set, defaulting to no args and -o=" + outputPath);
+		} else {
+			// take it
+			selectedOutput = data.output[0];
+
+			if (outputLen > 1 && buildIntoFile) {
+				let outputStrings = [outputLen];
+				for (var i = 0; i < outputLen; i++) {
+					outputStrings[i] = data.output[i].variant;
+				}
+				let pickedOutputString = await pickString(outputStrings);
+				for (var i = 0; i < outputLen; i++) {
+					if (data.output[i].variant == pickedOutputString) {
+						selectedOutput = data.output[i];
+						break;
+					}
+				}
+			}
+
+			outputPath = selectedOutput["output-path"] ? selectedOutput["output-path"] : "./out.html";
+			pandocArgs = selectedOutput["pandoc-args"] ? selectedOutput["pandoc-args"] : [];
+		}
+	}
+
+	// pandocArgs.push("--from=markdown");
+	if (buildIntoFile) {
+		pandocArgs.push("-o");
+		pandocArgs.push(outputPath);
+	}
+
+	// read additional arguments
+	if (data.output != undefined) {
+		if (selectedOutput["from"] != undefined) {
+			pandocArgs.push("--from");
+			pandocArgs.push(selectedOutput["from"]);
+		}
+		if (selectedOutput["to"] != undefined) {
+			pandocArgs.push("--to");
+			pandocArgs.push(buildIntoFile ? selectedOutput["to"] : "html");
+		}
+		if (selectedOutput["standalone"]) {
+			pandocArgs.push("-s");
+		}
+		if (selectedOutput["self-contained"]) {
+			pandocArgs.push("--self-contained");
+		}
+		if (selectedOutput.toc) {
+			pandocArgs.push("--toc");
+			let tocDepth = selectedOutput["toc-depth"];
+			if (tocDepth > 0 && tocDepth <= 7) {
+				pandocArgs.push("--toc-depth");
+				pandocArgs.push(tocDepth);
+			}
+		}
+		if (selectedOutput["number-sections"])
+			pandocArgs.push("--number-sections");
+		let pdfEngine = selectedOutput["pdf-engine"];
+		if (pdfEngine != undefined) {
+			pandocArgs.push("--pdf-engine");
+			pandocArgs.push(pdfEngine); 
+		}
+		if (selectedOutput["css"] != undefined) {
+			pandocArgs.push("--css");
+			pandocArgs.push(selectedOutput["css"]);
+		}
+
+		// variables
+		// titel und athor selber übergeben
+		if (selectedOutput["toc-title"]) {
+			pandocArgs.push("--variable")
+			if (selectedOutput["toc-title"]) {
+				pandocArgs.push("toc-title="+selectedOutput["toc-title"]);
+			}
+		}
+
+		// metadata
+		pandocArgs.push("--metadata");
+		if (data.title != undefined) {
+			pandocArgs.push("title="+data["title"]);
+		}
+	}
+	return pandocArgs;
+}
+
+export function executePandoc(filePath:string, pandocArgs:string[], callback:(error:any, result:any) => any) {
+	const path = require("path");
+	const nodePandoc = require("node-pandoc");
+
+	// make pandoc execute in the right folder
+	process.chdir(path.dirname(filePath));
+
+	// pandoc befehl
+	nodePandoc(filePath, pandocArgs, callback);
+
+
+	return "";
+	
 }
 
 export async function pickString(items:string[]) : Promise<string> {
@@ -449,40 +488,83 @@ export async function pickString(items:string[]) : Promise<string> {
 	return pick;
 }
 
-export async function pickPandocArgs() : Promise<vscode.QuickPickItem[]> {
-	const items : vscode.QuickPickItem[] = [
-		{label: 'TOC', description: 'eine beschreibung'},
-		{label: 'Number Sections', detail: 'ein kleines detil'},
-		{label: 'Hard Line Breaks'},
-		{label: 'Specify output format'}
-		// {label: 'emoji'},
-		// {label: 'Custom CSS'}
-		// which output format???
-		// pdf, html, beamer, js-slide shows
-	];
 
-	let result = await vscode.window.showQuickPick(items, {
-		// placeHolder: 'eins, zwei or drei',
-		title: "Pick desired pandoc settings",
-		canPickMany: true
-	});
+
+
+// Old stuff
+
+// later
+// if (format == "html") {
+// 	header += (
+// 		"# Arguments for html output:\n" + 
+// 		"document-css: style.css\n" +
+// 		"mainfont: roboto\n" +
+// 		"fontsize: 12pt\n" +
+// 		"fontcolor: 1a1a1a\n" +
+// 		"# linkcolor\n" +
+// 		"# monofont\n" +
+// 		"# monobackgroundcolor\n" +
+// 		"# linestretch\n" +
+// 		"# backgroundcolor\n" +
+// 		"# margin-left, margin-right, margin-top, margin-bottom\n"				
+// 	);
+// }
+
+// export function createHeader(title:string, author:string, date:string, setperator:string, items:vscode.QuickPickItem[]) {
+// 	const path = require("path");
+// 	let header = ("---\ntitle: "+ title +"\n" +
+// 			"author: " + author + "\n" +
+// 			"date: " + date + "\n" +
+// 			"output:\n" +
+// 			"    - variant: pdf\n" +
+// 			"      output-path: ."+ setperator +"out.pdf\n" +
+// 			"      pandoc-args: []\n"
+// 			// "\t\t\ttoc: true\n" +
+// 			);
+// 	items.forEach(item => {
+// 		switch (item.label) {
+// 			case 'TOC':
+// 				header += "\t\t\ttoc: true\n";
+// 				header += "\t\t\ttoc-depth: 2\n";
+// 				break;		
+// 			default:
+// 				break;
+// 		}
+// 	}); {
+
+// 	}
+// 	header += "---\n\n";
+// 	return header;
+// }
+
+// export async function pickPandocArgs() : Promise<vscode.QuickPickItem[]> {
+// 	const items : vscode.QuickPickItem[] = [
+// 		{label: 'TOC', description: 'eine beschreibung'},
+// 		{label: 'Number Sections', detail: 'ein kleines detil'},
+// 		{label: 'Specify output format'},
+// 		{label: 'Hard Line Breaks'},
+// 		{label: 'emoji'},
+// 		// {label: 'Custom CSS'}
+// 		// which output format???
+// 		// pdf, html, beamer, js-slide shows
+// 	];
+
+// 	let result = await vscode.window.showQuickPick(items, {
+// 		placeHolder: 'eins, zwei or drei',
+// 		title: "Pick desired pandoc settings",
+// 		canPickMany: true
+// 	});
 
 	
-	if (!result) {
-		result = [];
-	}
+// 	if (!result) {
+// 		result = [];
+// 	}
 
-	return result;
+// 	return result;
 
-	// const prom = new Promise<vscode.QuickPickItem[]>((resolve, reject) => {
-	// 	resolve(result);
-	// });	
-	// return prom;
+// 	// const prom = new Promise<vscode.QuickPickItem[]>((resolve, reject) => {
+// 	// 	resolve(result);
+// 	// });	
+// 	// return prom;
 
-}
-
-export function getWebviewContent() {
-	
-	return `hello there`;
-
-}
+// }

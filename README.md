@@ -7,7 +7,9 @@ This extension was developed to ease up quick note taking in Markdown using [VSC
 
 1. Automatically create YAML headers for Markdown files
 2. Automatically build the Markdown file as specified in the header
-3. Live Preview your built html within VSCode
+3. Live Preview 
+   1. your editor html build
+   2. your already built file
 
 ## Requirements
 

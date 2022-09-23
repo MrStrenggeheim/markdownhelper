@@ -18,3 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New Command: **LivePreview** \
   This Preview allows you to live-preview a built html file
 - Keybindings
+
+## [0.1.1]
+### Changed
+- Live Preview split into
+  - Editor live view
+  - File live view
