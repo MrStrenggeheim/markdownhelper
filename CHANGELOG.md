@@ -24,3 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Live Preview split into
   - Editor live view
   - File live view
+
+## [0.1.2]
+### Added
+- Setting for update interval of live preview in editor
+- Template setting in yaml header
+

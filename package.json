@@ -2,7 +2,7 @@
 	"name": "markdownhelper",
 	"displayName": "MarkdownHelper",
 	"description": "Helps you writing Markdown",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"publisher": "FlorianHunecke",
 	"repository": {
 		"type": "git",
@@ -102,10 +102,24 @@
 					"default": "null",
 					"description": "Use this url as default css file"
 				},
+				"markdownhelper.default-template": {
+					"type": "string",
+					"default": "null",
+					"description": "Use this url as default template html file for pandoc"
+				},
 				"markdownhelper.autosafe-on-build": {
 					"type": "boolean",
 					"default": "true",
 					"description": "Save file when building"
+				},
+				"markdownhelper.live-editor-view-update": {
+					"description": "select the update frequency for the live editor view",
+					"type": "string",
+					"default": "onType",
+					"enum": [
+						"onType",
+						"onSave"
+					]
 				}
 			}
 		}

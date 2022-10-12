@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.pickString = exports.executePandoc = exports.parseYamlHeader = exports.getYamlHeaderData = exports.createFullHeader = exports.getAuthors = exports.getTitle = exports.deactivate = exports.activate = void 0;
+exports.pickString = exports.executePandocRawData = exports.executePandoc = exports.parseYamlHeader = exports.getYamlHeaderData = exports.createFullHeader = exports.getAuthors = exports.getTitle = exports.deactivate = exports.activate = void 0;
 const vscode = require("vscode");
 let mhlog = vscode.window.createOutputChannel("MarkdownHelper Log");
 // this method is called when your extension is activated
@@ -74,17 +74,23 @@ function activate(context) {
         {} // Webview options. More on these later.
         );
         const updateWebview = () => __awaiter(this, void 0, void 0, function* () {
-            var _a;
+            var _a, _b;
             let activeFileName = (_a = vscode.window.activeTextEditor) === null || _a === void 0 ? void 0 : _a.document.fileName;
             if (!activeFileName) {
                 vscode.window.showErrorMessage("Could not find active File");
                 return;
             }
-            panel.title = path.parse(activeFileName).name;
-            let data = getYamlHeaderData(activeFileName);
+            // read file
+            let fileContents = (_b = vscode.window.activeTextEditor) === null || _b === void 0 ? void 0 : _b.document.getText();
+            if (!fileContents) {
+                vscode.window.showErrorMessage("Could not read active document");
+                return;
+            }
+            let data = getYamlHeaderData(fileContents);
             console.log(data);
             let pandocArgs = yield parseYamlHeader(data, false);
             console.log("args: " + pandocArgs);
+            // panel.title = path.parse(activeFileName).name;
             const callback = (error, result) => {
                 if (error) {
                     console.error(error);
@@ -93,12 +99,32 @@ function activate(context) {
                 console.log("Executed with args:\n" + pandocArgs.toString());
                 // mhlog.appendLine("Executed with args:\n" + pandocArgs.toString());
                 panel.webview.html = result;
-                return console.log("result: " + result), result;
+                return /*console.log("result: " + result),*/ result;
             };
-            executePandoc(activeFileName, pandocArgs, callback);
+            executePandocRawData(fileContents, pandocArgs, callback);
         });
         updateWebview();
-        let listener = vscode.workspace.onDidSaveTextDocument((document) => {
+        // if setting update view is onType then update on every keystroke else update on save
+        let settings = vscode.workspace.getConfiguration('markdownhelper');
+        let listener;
+        if (settings.get('live-editor-view-update') == "onType") {
+            // create a listener for every keystroke
+            listener = vscode.workspace.onDidChangeTextDocument((e) => {
+                // if (e.document.languageId === "markdown" && e.document.uri.scheme === "file") {
+                updateWebview();
+                console.log("changed");
+                // }
+            });
+        }
+        else if (settings.get('live-editor-view-update') == "onSave") {
+            listener = vscode.workspace.onDidSaveTextDocument((document) => {
+                if (document.languageId === "markdown" && document.uri.scheme === "file") {
+                    updateWebview();
+                    console.log("saved");
+                }
+            });
+        }
+        listener = vscode.workspace.onDidSaveTextDocument((document) => {
             if (document.languageId === "markdown" && document.uri.scheme === "file") {
                 updateWebview();
             }
@@ -110,9 +136,9 @@ function activate(context) {
     }));
     // Create Header
     let createHeaderCommand = vscode.commands.registerCommand('markdownhelper.createHeader', () => __awaiter(this, void 0, void 0, function* () {
-        var _b, _c;
+        var _c, _d;
         var path = require("path");
-        let openTabFilePath = (_b = vscode.window.activeTextEditor) === null || _b === void 0 ? void 0 : _b.document.fileName;
+        let openTabFilePath = (_c = vscode.window.activeTextEditor) === null || _c === void 0 ? void 0 : _c.document.fileName;
         let fileObject = path.parse(openTabFilePath); // create fileObject from path
         let title = fileObject.name; // get name of file (also: root, dir, base, ext, name)
         title = yield getTitle(title);
@@ -126,11 +152,12 @@ function activate(context) {
             return;
         }
         let header = new vscode.SnippetString(yield createFullHeader(title, author, date, chosenFormat));
-        (_c = vscode.window.activeTextEditor) === null || _c === void 0 ? void 0 : _c.insertSnippet(header, new vscode.Position(0, 0));
+        (_d = vscode.window.activeTextEditor) === null || _d === void 0 ? void 0 : _d.insertSnippet(header, new vscode.Position(0, 0));
     }));
     let buildFileCommand = vscode.commands.registerCommand('markdownhelper.buildFile', () => __awaiter(this, void 0, void 0, function* () {
-        var _d, _e;
-        let filePath = (_d = vscode.window.activeTextEditor) === null || _d === void 0 ? void 0 : _d.document.fileName;
+        var _e, _f;
+        const fs = require('fs');
+        let filePath = (_e = vscode.window.activeTextEditor) === null || _e === void 0 ? void 0 : _e.document.fileName;
         if (!filePath) {
             vscode.window.showErrorMessage("Could not find Filename");
             return;
@@ -138,11 +165,13 @@ function activate(context) {
         let settings = vscode.workspace.getConfiguration('markdownhelper');
         // Safe File if desired
         if (settings['autosafe-on-build']) {
-            (_e = vscode.window.activeTextEditor) === null || _e === void 0 ? void 0 : _e.document.save();
+            (_f = vscode.window.activeTextEditor) === null || _f === void 0 ? void 0 : _f.document.save();
         }
         // get info of yaml header
         const path = require("path");
-        let data = getYamlHeaderData(filePath);
+        // read file
+        let fileContents = fs.readFileSync(filePath, 'utf8');
+        let data = getYamlHeaderData(fileContents);
         let pandocArgs = yield parseYamlHeader(data);
         console.log(pandocArgs);
         const callback = (error, result) => {
@@ -152,7 +181,7 @@ function activate(context) {
             }
             console.log("Executed with args:\n" + pandocArgs.toString());
             mhlog.appendLine("Executed with args:\n" + pandocArgs.toString());
-            return console.log("result: " + result), result;
+            return /*console.log("result: " + result),*/ result;
         };
         executePandoc(filePath, pandocArgs, callback);
         // ALTE IMPLEMENTIERUNG
@@ -263,6 +292,7 @@ output:
     toc-title: ${settings["default-toc-title"]}
     number-sections: ${settings["default-number-sections"]}
     css: ${cssFile}
+    template: ${settings["default-template"]}
     pandoc-args: []
 ---\n\n`;
         // header = ("---\ntitle: " + title + "\n" +
@@ -286,13 +316,10 @@ output:
     });
 }
 exports.createFullHeader = createFullHeader;
-function getYamlHeaderData(filePath) {
+function getYamlHeaderData(fileContents) {
     var _a;
-    const fs = require('fs');
     const yaml = require('js-yaml');
     const path = require("path");
-    // read file
-    let fileContents = fs.readFileSync(filePath, 'utf8');
     // remove comments
     let regex = /<!--(.)*?-->/s;
     // add s for including new line to dot; adding ? after * for making it non greedy (only next occur) of -->
@@ -400,6 +427,10 @@ function parseYamlHeader(data, buildIntoFile = true) {
                 pandocArgs.push("--css");
                 pandocArgs.push(selectedOutput["css"]);
             }
+            if (selectedOutput["template"] != undefined) {
+                pandocArgs.push("--template");
+                pandocArgs.push(selectedOutput["template"]);
+            }
             // variables
             // titel und athor selber übergeben
             if (selectedOutput["toc-title"]) {
@@ -428,6 +459,13 @@ function executePandoc(filePath, pandocArgs, callback) {
     return "";
 }
 exports.executePandoc = executePandoc;
+function executePandocRawData(data, pandocArgs, callback) {
+    const nodePandoc = require("node-pandoc");
+    // pandoc befehl
+    nodePandoc(data, pandocArgs, callback);
+    return "";
+}
+exports.executePandocRawData = executePandocRawData;
 function pickString(items) {
     return __awaiter(this, void 0, void 0, function* () {
         let pick = "";

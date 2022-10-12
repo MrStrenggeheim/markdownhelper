@@ -90,13 +90,18 @@ export function activate(context: vscode.ExtensionContext) {
 				vscode.window.showErrorMessage("Could not find active File");
 				return;
 			}
-			panel.title = path.parse(activeFileName).name;
-
-			let data = getYamlHeaderData(activeFileName);
+			// read file
+			let fileContents = vscode.window.activeTextEditor?.document.getText();
+			if (!fileContents) {
+				vscode.window.showErrorMessage("Could not read active document");
+				return;
+			}
+			let data = getYamlHeaderData(fileContents);
 			console.log(data);
 			let pandocArgs = await parseYamlHeader(data, false);
 			console.log("args: "+ pandocArgs);
-
+			
+			// panel.title = path.parse(activeFileName).name;
 			const callback = (error: any, result: any) => {
 				if (error) {
 					console.error(error);
@@ -106,10 +111,10 @@ export function activate(context: vscode.ExtensionContext) {
 				// mhlog.appendLine("Executed with args:\n" + pandocArgs.toString());
 		
 				panel.webview.html = result;
-				return console.log("result: " + result), result
+				return /*console.log("result: " + result),*/ result
 			}
 
-			executePandoc(activeFileName, pandocArgs, callback);
+			executePandocRawData(fileContents, pandocArgs, callback);
 
 			
 
@@ -118,8 +123,28 @@ export function activate(context: vscode.ExtensionContext) {
 		updateWebview();
 
 		
+		// if setting update view is onType then update on every keystroke else update on save
+		let settings = vscode.workspace.getConfiguration('markdownhelper');
+		let listener: vscode.Disposable;
+		if (settings.get('live-editor-view-update') == "onType") {
+			// create a listener for every keystroke
+			listener = vscode.workspace.onDidChangeTextDocument((e) => {
+				// if (e.document.languageId === "markdown" && e.document.uri.scheme === "file") {
+					updateWebview();
+					console.log("changed");
+				// }
+			});
+		} else if (settings.get('live-editor-view-update') == "onSave") {
+			listener = vscode.workspace.onDidSaveTextDocument((document) => {
+				if (document.languageId === "markdown" && document.uri.scheme === "file") {
+					updateWebview();
+					console.log("saved");
+				}
+			});
+		}
 
-		let listener = vscode.workspace.onDidSaveTextDocument((document) => {
+		
+		listener = vscode.workspace.onDidSaveTextDocument((document) => {
 			if (document.languageId === "markdown" && document.uri.scheme === "file") {
 				updateWebview();
 			}
@@ -163,6 +188,7 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	let buildFileCommand = vscode.commands.registerCommand('markdownhelper.buildFile', async () => {
+		const fs = require('fs');
 		let filePath = vscode.window.activeTextEditor?.document.fileName;
 		if (!filePath) {
 			vscode.window.showErrorMessage("Could not find Filename");
@@ -177,8 +203,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 		// get info of yaml header
 		const path = require("path");
-
-		let data = getYamlHeaderData(filePath);
+		// read file
+		let fileContents = fs.readFileSync(filePath, 'utf8');
+		let data = getYamlHeaderData(fileContents);
 		let pandocArgs = await parseYamlHeader(data);
 		console.log(pandocArgs);
 
@@ -190,7 +217,7 @@ export function activate(context: vscode.ExtensionContext) {
 			console.log("Executed with args:\n" + pandocArgs.toString());
 			mhlog.appendLine("Executed with args:\n" + pandocArgs.toString());
 	
-			return console.log("result: " + result), result
+			return /*console.log("result: " + result),*/ result
 		}
 		
 		executePandoc(filePath, pandocArgs, callback);
@@ -306,6 +333,7 @@ output:
     toc-title: ${settings["default-toc-title"]}
     number-sections: ${settings["default-number-sections"]}
     css: ${cssFile}
+    template: ${settings["default-template"]}
     pandoc-args: []
 ---\n\n`
 	// header = ("---\ntitle: " + title + "\n" +
@@ -328,13 +356,10 @@ output:
 	return header;
 }
 
-export function getYamlHeaderData(filePath:string) {
-	const fs = require('fs');
+export function getYamlHeaderData(fileContents: string) {
 	const yaml = require('js-yaml');
 	const path = require("path");
 
-	// read file
-	let fileContents = fs.readFileSync(filePath, 'utf8');
 	// remove comments
 	let regex = /<!--(.)*?-->/s;
 	// add s for including new line to dot; adding ? after * for making it non greedy (only next occur) of -->
@@ -448,6 +473,11 @@ export async function parseYamlHeader(data:any, buildIntoFile=true) {
 			pandocArgs.push("--css");
 			pandocArgs.push(selectedOutput["css"]);
 		}
+		if (selectedOutput["template"] != undefined) {
+			pandocArgs.push("--template");
+			pandocArgs.push(selectedOutput["template"]);
+		}
+
 
 		// variables
 		// titel und athor selber übergeben
@@ -480,6 +510,15 @@ export function executePandoc(filePath:string, pandocArgs:string[], callback:(er
 
 	return "";
 	
+}
+
+export function executePandocRawData(data:string, pandocArgs:string[], callback:(error:any, result:any) => any) {
+	const nodePandoc = require("node-pandoc");
+
+	// pandoc befehl
+	nodePandoc(data, pandocArgs, callback);
+
+	return "";
 }
 
 export async function pickString(items:string[]) : Promise<string> {
